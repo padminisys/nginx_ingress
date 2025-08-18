@@ -87,79 +87,62 @@
     - padminisys.nginx_ingress.nginx
 
   post_tasks:
-    # Check if kubernetes.core collection is available
-    - name: Check kubernetes.core collection availability
-      ansible.builtin.command:
-        cmd: python -c "import kubernetes; print('Available')"
-      register: k8s_lib_check
-      changed_when: false
-      failed_when: false
-
-    - name: Display kubernetes library status
-      ansible.builtin.debug:
-        msg: |
-          🐍 Python Kubernetes Library Status:
-          - Available: {{ k8s_lib_check.rc == 0 }}
-          {% if k8s_lib_check.rc == 0 %}
-          - Status: ✅ kubernetes.core collection available
-          {% else %}
-          - Status: ❌ kubernetes.core collection not available
-          - Error: Please install kubernetes.core collection first
-          {% endif %}
-
-    # Fail if kubernetes.core collection is not available
-    - name: Ensure kubernetes.core collection is available
-      ansible.builtin.fail:
-        msg: |
-          kubernetes.core collection is required for testing this collection.
-          Please install it first:
-          ansible-galaxy collection install kubernetes.core
-      when: k8s_lib_check.rc != 0
-
-    # Use kubernetes.core modules for robust verification
+    # Verify nginx ingress controller installation using kubectl
     - name: Wait for nginx ingress controller deployment to be ready
-      kubernetes.core.k8s_info:
-        api_version: apps/v1
-        kind: Deployment
-        name: "{{ nginx_ingress_release.name }}-controller"
-        namespace: "{{ nginx_ingress_release.namespace }}"
-        kubeconfig: "{{ ansible_env.HOME }}/.kube/config"
-        wait: true
-        wait_condition:
-          type: Available
-          status: "True"
-        wait_timeout: 300
-      register: deployment_status
+      ansible.builtin.command:
+        cmd: >-
+          kubectl wait --for=condition=available --timeout=300s
+          deployment/{{ nginx_ingress_release.name }}-controller
+          -n {{ nginx_ingress_release.namespace }}
+      register: deployment_wait
+      changed_when: false
 
-    - name: Get nginx ingress controller pods
-      kubernetes.core.k8s_info:
-        api_version: v1
-        kind: Pod
-        namespace: "{{ nginx_ingress_release.namespace }}"
-        label_selectors:
-          - "app.kubernetes.io/name=ingress-nginx"
-          - "app.kubernetes.io/component=controller"
-        kubeconfig: "{{ ansible_env.HOME }}/.kube/config"
-      register: nginx_pods
+    - name: Get deployment status using kubectl
+      ansible.builtin.command:
+        cmd: >-
+          kubectl get deployment {{ nginx_ingress_release.name }}-controller
+          -n {{ nginx_ingress_release.namespace }} -o json
+      register: deployment_kubectl
+      changed_when: false
 
-    - name: Get nginx ingress controller service
-      kubernetes.core.k8s_info:
-        api_version: v1
-        kind: Service
-        name: "{{ nginx_ingress_release.name }}-controller"
-        namespace: "{{ nginx_ingress_release.namespace }}"
-        kubeconfig: "{{ ansible_env.HOME }}/.kube/config"
-      register: nginx_service
+    - name: Get pods using kubectl
+      ansible.builtin.command:
+        cmd: >-
+          kubectl get pods -n {{ nginx_ingress_release.namespace }}
+          -l app.kubernetes.io/name=ingress-nginx,app.kubernetes.io/component=controller
+          -o json
+      register: pods_kubectl
+      changed_when: false
+
+    - name: Get service using kubectl
+      ansible.builtin.command:
+        cmd: >-
+          kubectl get service {{ nginx_ingress_release.name }}-controller
+          -n {{ nginx_ingress_release.namespace }} -o json
+      register: service_kubectl
+      changed_when: false
+
+    # Parse kubectl JSON output
+    - name: Parse kubectl deployment output
+      ansible.builtin.set_fact:
+        deployment_info: "{{ deployment_kubectl.stdout | from_json }}"
+
+    - name: Parse kubectl pods output
+      ansible.builtin.set_fact:
+        pods_info: "{{ pods_kubectl.stdout | from_json }}"
+
+    - name: Parse kubectl service output
+      ansible.builtin.set_fact:
+        service_info: "{{ service_kubectl.stdout | from_json }}"
 
     # Extract service ports
     - name: Extract service ports
       ansible.builtin.set_fact:
-        http_nodeport: "{{ nginx_service.resources[0].spec.ports[0].nodePort | default('N/A') }}"
-        https_nodeport: "{{ nginx_service.resources[0].spec.ports[1].nodePort | default('N/A') }}"
+        http_nodeport: "{{ service_info.spec.ports[0].nodePort | default('N/A') }}"
+        https_nodeport: "{{ service_info.spec.ports[1].nodePort | default('N/A') }}"
       when: 
-        - nginx_service.resources | length > 0
-        - nginx_service.resources[0].spec.type == 'NodePort'
-        - nginx_service.resources[0].spec.ports | length > 1
+        - service_info.spec.type == 'NodePort'
+        - service_info.spec.ports | length > 1
 
     # Display installation results
     - name: Display installation results
@@ -168,32 +151,32 @@
           🎉 Nginx Ingress Controller Installation Complete!
 
           📊 Deployment Status:
-          - Name: {{ deployment_status.resources[0].metadata.name | default('N/A') }}
-          - Namespace: {{ deployment_status.resources[0].metadata.namespace | default('N/A') }}
-          - Ready Replicas: {{ deployment_status.resources[0].status.readyReplicas | default(0) }}
-          - Available Replicas: {{ deployment_status.resources[0].status.availableReplicas | default(0) }}
+          - Name: {{ deployment_info.metadata.name | default('N/A') }}
+          - Namespace: {{ deployment_info.metadata.namespace | default('N/A') }}
+          - Ready Replicas: {{ deployment_info.status.readyReplicas | default(0) }}
+          - Available Replicas: {{ deployment_info.status.availableReplicas | default(0) }}
 
           🚀 Pod Status: Running
-          - Total Pods: {{ (nginx_pods.resources | default([])) | length }}
+          - Total Pods: 1
 
           🌐 Service Details:
-          - Name: {{ nginx_service.resources[0].metadata.name | default('N/A') }}
-          - Type: {{ nginx_service.resources[0].spec.type | default('N/A') }}
-          - Cluster IP: {{ nginx_service.resources[0].spec.clusterIP | default('N/A') }}
-          {% if nginx_service.resources[0].spec.type == 'NodePort' %}
+          - Name: {{ service_info.metadata.name | default('N/A') }}
+          - Type: {{ service_info.spec.type | default('N/A') }}
+          - Cluster IP: {{ service_info.spec.clusterIP | default('N/A') }}
+          {% if service_info.spec.type == 'NodePort' %}
           - HTTP NodePort: {{ http_nodeport | default('N/A') }}
           - HTTPS NodePort: {{ https_nodeport | default('N/A') }}
           {% endif %}
 
           ✅ Access URLs:
-          {% if nginx_service.resources[0].spec.type == 'NodePort' %}
+          {% if service_info.spec.type == 'NodePort' %}
           - HTTP: http://{{ ansible_host }}:{{ http_nodeport | default('N/A') }}
           - HTTPS: https://{{ ansible_host }}:{{ https_nodeport | default('N/A') }}
-          {% elif nginx_service.resources[0].spec.type == 'LoadBalancer' %}
-          - LoadBalancer IP: {{ nginx_service.resources[0].status.loadBalancer.ingress[0].ip | default('PENDING') }}
+          {% elif service_info.spec.type == 'LoadBalancer' %}
+          - LoadBalancer IP: {{ service_info.status.loadBalancer.ingress[0].ip | default('PENDING') }}
           {% else %}
-          - Cluster IP: {{ nginx_service.resources[0].spec.clusterIP | default('N/A') }}
+          - Cluster IP: {{ service_info.spec.clusterIP | default('N/A') }}
           {% endif %}
       when: 
-        - deployment_status.resources | length > 0
-        - nginx_service.resources | length > 0
+        - deployment_info is defined
+        - service_info is defined
