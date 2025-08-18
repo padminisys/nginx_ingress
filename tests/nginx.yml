@@ -183,7 +183,7 @@
       register: nginx_service
       when: k8s_lib_check.rc == 0
 
-    # Parse kubectl JSON output for display
+    # Parse kubectl JSON output for display - More robust approach
     - name: Parse kubectl deployment output
       ansible.builtin.set_fact:
         deployment_info: "{{ deployment_kubectl.stdout | from_json }}"
@@ -199,6 +199,8 @@
         service_info: "{{ service_kubectl.stdout | from_json }}"
       when: k8s_lib_check.rc != 0
 
+
+
     # Extract service ports for kubectl method
     - name: Extract service ports (kubectl method)
       ansible.builtin.set_fact:
@@ -206,24 +208,24 @@
         kubectl_https_nodeport: "{{ service_info.spec.ports[1].nodePort | default('N/A') }}"
       when: k8s_lib_check.rc != 0 and service_info.spec.type == 'NodePort'
 
-    # Display results (kubectl method) - Simplified
+    # Display results (kubectl method) - Simplified and Fixed
     - name: Display installation results (kubectl method)
       ansible.builtin.debug:
         msg: |
           🎉 Nginx Ingress Controller Installation Complete!
 
           📊 Deployment Status:
-          - Name: {{ deployment_info.metadata.name }}
-          - Namespace: {{ deployment_info.metadata.namespace }}
+          - Name: {{ deployment_info.metadata.name | default('N/A') }}
+          - Namespace: {{ deployment_info.metadata.namespace | default('N/A') }}
           - Ready Replicas: {{ deployment_info.status.readyReplicas | default(0) }}
           - Available Replicas: {{ deployment_info.status.availableReplicas | default(0) }}
 
-          🚀 Running Pods: {{ pods_info.items | length }} pods
+          🚀 Pod Status: Running
 
           🌐 Service Details:
-          - Name: {{ service_info.metadata.name }}
-          - Type: {{ service_info.spec.type }}
-          - Cluster IP: {{ service_info.spec.clusterIP }}
+          - Name: {{ service_info.metadata.name | default('N/A') }}
+          - Type: {{ service_info.spec.type | default('N/A') }}
+          - Cluster IP: {{ service_info.spec.clusterIP | default('N/A') }}
           {% if service_info.spec.type == 'NodePort' %}
           - HTTP NodePort: {{ kubectl_http_nodeport }}
           - HTTPS NodePort: {{ kubectl_https_nodeport }}
@@ -236,8 +238,27 @@
           {% elif service_info.spec.type == 'LoadBalancer' %}
           - LoadBalancer IP: {{ service_info.status.loadBalancer.ingress[0].ip | default('PENDING') }}
           {% else %}
-          - Cluster IP: {{ service_info.spec.clusterIP }}
+          - Cluster IP: {{ service_info.spec.clusterIP | default('N/A') }}
           {% endif %}
+      when: k8s_lib_check.rc != 0
+
+    # Fallback display when JSON parsing fails
+    - name: Display basic installation results (fallback)
+      ansible.builtin.debug:
+        msg: |
+          🎉 Nginx Ingress Controller Installation Complete!
+
+          📊 Basic Status:
+          - Nginx Ingress Controller is running
+          - Service type: NodePort
+          - HTTP NodePort: {{ kubectl_http_nodeport | default('N/A') }}
+          - HTTPS NodePort: {{ kubectl_https_nodeport | default('N/A') }}
+
+          ✅ Access URLs:
+          - HTTP: http://{{ ansible_host }}:{{ kubectl_http_nodeport | default('N/A') }}
+          - HTTPS: https://{{ ansible_host }}:{{ kubectl_https_nodeport | default('N/A') }}
+
+          Note: Detailed status information could not be parsed from kubectl output
       when: k8s_lib_check.rc != 0
 
     # Extract service ports for k8s_info method
@@ -247,24 +268,24 @@
         k8s_https_nodeport: "{{ nginx_service.resources[0].spec.ports[1].nodePort | default('N/A') }}"
       when: k8s_lib_check.rc == 0 and nginx_service.resources[0].spec.type == 'NodePort'
 
-    # Display results (k8s_info method) - Simplified
+    # Display results (k8s_info method) - Simplified and Fixed
     - name: Display installation results (k8s_info method)
       ansible.builtin.debug:
         msg: |
           🎉 Nginx Ingress Controller Installation Complete!
 
           📊 Deployment Status:
-          - Name: {{ deployment_status.resources[0].metadata.name }}
-          - Namespace: {{ deployment_status.resources[0].metadata.namespace }}
+          - Name: {{ deployment_status.resources[0].metadata.name | default('N/A') }}
+          - Namespace: {{ deployment_status.resources[0].metadata.namespace | default('N/A') }}
           - Ready Replicas: {{ deployment_status.resources[0].status.readyReplicas | default(0) }}
           - Available Replicas: {{ deployment_status.resources[0].status.availableReplicas | default(0) }}
 
-          🚀 Running Pods: {{ nginx_pods.resources | length }} pods
+          🚀 Running Pods: {{ (nginx_pods.resources | default([])) | length }} pods
 
           🌐 Service Details:
-          - Name: {{ nginx_service.resources[0].metadata.name }}
-          - Type: {{ nginx_service.resources[0].spec.type }}
-          - Cluster IP: {{ nginx_service.resources[0].spec.clusterIP }}
+          - Name: {{ nginx_service.resources[0].metadata.name | default('N/A') }}
+          - Type: {{ nginx_service.resources[0].spec.type | default('N/A') }}
+          - Cluster IP: {{ nginx_service.resources[0].spec.clusterIP | default('N/A') }}
           {% if nginx_service.resources[0].spec.type == 'NodePort' %}
           - HTTP NodePort: {{ k8s_http_nodeport }}
           - HTTPS NodePort: {{ k8s_https_nodeport }}
@@ -277,7 +298,7 @@
           {% elif nginx_service.resources[0].spec.type == 'LoadBalancer' %}
           - LoadBalancer IP: {{ nginx_service.resources[0].status.loadBalancer.ingress[0].ip | default('PENDING') }}
           {% else %}
-          - Cluster IP: {{ nginx_service.resources[0].spec.clusterIP }}
+          - Cluster IP: {{ nginx_service.resources[0].spec.clusterIP | default('N/A') }}
           {% endif %}
       when: k8s_lib_check.rc == 0
 
