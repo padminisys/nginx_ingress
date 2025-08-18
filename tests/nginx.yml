@@ -14,7 +14,7 @@
       wait: true
       timeout: "15m"
       force: false
-    
+
     # Override service type if needed (default is already NodePort)
     # nginx_ingress_values:
     #   controller:
@@ -140,7 +140,7 @@
       ansible.builtin.set_fact:
         http_nodeport: "{{ service_info.spec.ports[0].nodePort | default('N/A') }}"
         https_nodeport: "{{ service_info.spec.ports[1].nodePort | default('N/A') }}"
-      when: 
+      when:
         - service_info.spec.type == 'NodePort'
         - service_info.spec.ports | length > 1
 
@@ -177,6 +177,6 @@
           {% else %}
           - Cluster IP: {{ service_info.spec.clusterIP | default('N/A') }}
           {% endif %}
-      when: 
+      when:
         - deployment_info is defined
         - service_info is defined

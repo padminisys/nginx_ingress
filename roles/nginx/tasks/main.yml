@@ -18,7 +18,7 @@
 
 - name: Set kubeconfig path
   ansible.builtin.set_fact:
-    kubeconfig_file: >-
+    nginx_kubeconfig_file: >-
       {{
         nginx_ingress_kubeconfig.path
         if nginx_ingress_kubeconfig.path != ""
@@ -27,13 +27,13 @@
 
 - name: Check if kubeconfig file exists
   ansible.builtin.stat:
-    path: "{{ kubeconfig_file }}"
-  register: kubeconfig_stat
+    path: "{{ nginx_kubeconfig_file }}"
+  register: nginx_kubeconfig_stat
 
 - name: Fail if kubeconfig file does not exist
   ansible.builtin.fail:
-    msg: "Kubeconfig file not found at {{ kubeconfig_file }}"
-  when: not kubeconfig_stat.stat.exists
+    msg: "Kubeconfig file not found at {{ nginx_kubeconfig_file }}"
+  when: not nginx_kubeconfig_stat.stat.exists
 
 # =============================================================================
 # NGINX INGRESS INSTALLATION
@@ -43,14 +43,14 @@
   ansible.builtin.tempfile:
     state: directory
     suffix: nginx_ingress
-  register: temp_dir
+  register: nginx_temp_dir
 
 - name: Generate values.yaml from template
   ansible.builtin.template:
     src: "values.yaml.j2"
-    dest: "{{ temp_dir.path }}/values.yaml"
+    dest: "{{ nginx_temp_dir.path }}/values.yaml"
     mode: '0644'
-  register: values_file
+  register: nginx_values_file
 
 - name: Install nginx ingress controller using helm
   kubernetes.core.helm:
@@ -61,15 +61,15 @@
     release_namespace: "{{ nginx_ingress_release.namespace }}"
     create_namespace: "{{ nginx_ingress_release.create_namespace }}"
     values_files:
-      - "{{ values_file.dest }}"
-    kubeconfig: "{{ kubeconfig_file }}"
+      - "{{ nginx_values_file.dest }}"
+    kubeconfig: "{{ nginx_kubeconfig_file }}"
     wait: "{{ nginx_ingress_helm.wait }}"
     wait_timeout: "{{ nginx_ingress_helm.timeout }}"
     force: "{{ nginx_ingress_helm.force }}"
     state: present
   environment:
     PATH: "{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
-  register: helm_result
+  register: nginx_helm_result
 
 - name: Display helm installation result
   ansible.builtin.debug:
@@ -79,13 +79,12 @@
       - App Version: {{ nginx_ingress_chart.app_version }}
       - Release: {{ nginx_ingress_release.name }}
       - Namespace: {{ nginx_ingress_release.namespace }}
-  when: helm_result is succeeded
+  when: nginx_helm_result is succeeded
 
 - name: Clean up temporary directory
   ansible.builtin.file:
-    path: "{{ temp_dir.path }}"
+    path: "{{ nginx_temp_dir.path }}"
     state: absent
-  when: temp_dir is defined
+  when: nginx_temp_dir is defined
 
-# Service information will be displayed by the test playbook post_tasks
-# This avoids dependency on kubernetes Python library in the role itself
+# Note: Service information and detailed status will be displayed by the test playbook
