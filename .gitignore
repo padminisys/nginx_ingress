@@ -3,3 +3,4 @@
 .vscode/*
 *.tar.gz
 */inventory
+context/
