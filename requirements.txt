@@ -1,3 +1,10 @@
+# =============================================================================
+# NGINX INGRESS COLLECTION REQUIREMENTS
+# =============================================================================
+# This file consolidates all Python dependencies for the collection
+# Used for both local development and execution environments
+# =============================================================================
+
 # Core Ansible requirements
 ansible-core>=2.16
 ansible-dev-tools
@@ -6,13 +13,20 @@ ansible-lint
 # Kubernetes Python library for kubernetes.core collection
 kubernetes>=12.0.0
 
-# Additional dependencies for Kubernetes operations
+# YAML processing and configuration
 PyYAML>=5.4.1
+
+# HTTP requests and operations
 requests>=2.25.1
 urllib3>=1.26.0
+requests-oauthlib>=1.3.0
 
-# For better JSON handling
+# JSON operations and handling
 jsonpatch>=1.32
 
-# For HTTP operations
-requests-oauthlib>=1.3.0
+# OpenShift client (if needed for OpenShift environments)
+openshift>=0.12.0
+
+# Additional utilities
+six>=1.16.0
+python-dateutil>=2.8.2
