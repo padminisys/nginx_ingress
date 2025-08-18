@@ -9,7 +9,7 @@ This guide provides step-by-step instructions for testing the nginx ingress coll
 - `kubernetes.core` collection installed
 - Access to target Kubernetes node
 
-### On Target Node (kubenext - 45.248.67.9)
+### On Target Node (kubenext - TARGET_NODE_IP)
 - Kubernetes cluster running
 - kubectl configured with valid kubeconfig at `~/.kube/config`
 - Python 3 with kubernetes library
@@ -112,7 +112,7 @@ The test playbook ([`tests/nginx.yml`](tests/nginx.yml)) includes:
 ```yaml
 TASK [Display installation results] ****
 ok: [kubenext] => {
-    "msg": "🎉 Nginx Ingress Controller Installation Complete!\n\n📊 Deployment Status:\n- Name: ingress-nginx-controller\n- Namespace: ingress-nginx\n- Ready Replicas: 1\n- Available Replicas: 1\n\n🚀 Running Pods:\n- ingress-nginx-controller-xxx: Running\n\n🌐 Service Details:\n- Name: ingress-nginx-controller\n- Type: NodePort\n- Cluster IP: 10.96.xxx.xxx\n- NodePorts:\n  - http: 80:30080/TCP\n  - https: 443:30443/TCP\n\n✅ Access URLs (NodePort):\n- HTTP: http://45.248.67.9:30080\n- HTTPS: https://45.248.67.9:30443"
+    "msg": "🎉 Nginx Ingress Controller Installation Complete!\n\n📊 Deployment Status:\n- Name: ingress-nginx-controller\n- Namespace: ingress-nginx\n- Ready Replicas: 1\n- Available Replicas: 1\n\n🚀 Running Pods:\n- ingress-nginx-controller-xxx: Running\n\n🌐 Service Details:\n- Name: ingress-nginx-controller\n- Type: NodePort\n- Cluster IP: 10.96.xxx.xxx\n- NodePorts:\n  - http: 80:30080/TCP\n  - https: 443:30443/TCP\n\n✅ Access URLs (NodePort):\n- HTTP: http://TARGET_NODE_IP:30080\n- HTTPS: https://TARGET_NODE_IP:30443"
 }
 ```
 
@@ -132,7 +132,7 @@ ok: [kubenext] => {
 #### 1. Connection Issues
 ```bash
 # Test SSH connectivity
-ssh -o StrictHostKeyChecking=no ramanuj@45.248.67.9
+ssh -o StrictHostKeyChecking=no USER@TARGET_NODE_IP
 
 # Verify inventory configuration
 ansible-inventory -i inventory --list
@@ -200,10 +200,10 @@ EOF
 ### 3. Access Nginx Ingress
 ```bash
 # Test HTTP endpoint
-curl -I http://45.248.67.9:30080/healthz
+curl -I http://TARGET_NODE_IP:30080/healthz
 
 # Test with custom host header
-curl -H "Host: test.local" http://45.248.67.9:30080
+curl -H "Host: test.local" http://TARGET_NODE_IP:30080
 ```
 
 ## Cleanup

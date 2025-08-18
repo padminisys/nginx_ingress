@@ -114,12 +114,13 @@ if ansible-playbook -i inventory nginx.yml -v; then
     print_success "🎉 Nginx ingress installation test completed successfully!"
     echo
     print_status "Access URLs:"
-    print_status "  HTTP:  http://45.248.67.9:30080"
-    print_status "  HTTPS: https://45.248.67.9:30443"
-    print_status "  Health: http://45.248.67.9:30080/healthz"
+    print_status "  HTTP:  http://TARGET_NODE_IP:30080"
+    print_status "  HTTPS: https://TARGET_NODE_IP:30443"
+    print_status "  Health: http://TARGET_NODE_IP:30080/healthz"
     echo
     print_status "To verify installation manually:"
-    print_status "  ssh ramanuj@45.248.67.9 'kubectl get all -n ingress-nginx'"
+    print_status "  ssh USER@TARGET_NODE_IP 'kubectl get all -n ingress-nginx'"
+    print_status "  (Replace TARGET_NODE_IP with your actual node IP address)"
 else
     print_error "Test playbook execution failed"
     print_error "Check the output above for details"
