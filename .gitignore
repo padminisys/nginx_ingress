@@ -2,3 +2,4 @@
 .venv/*
 .vscode/*
 *.tar.gz
+*/inventory
