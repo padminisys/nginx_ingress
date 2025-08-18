@@ -1,0 +1,17 @@
+---
+# Ansible Collection Requirements for AWX/AAP
+# This file should be used in AWX/AAP to install required collections
+
+collections:
+  # Core dependencies
+  - name: kubernetes.core
+    version: ">=2.4.0"
+  - name: ansible.posix
+    version: ">=1.5.0"
+  - name: community.general
+    version: ">=7.0.0"
+  
+  # Your published collection
+  - name: padminisys.nginx_ingress
+    version: ">=1.0.0"
+    source: https://galaxy.ansible.com/

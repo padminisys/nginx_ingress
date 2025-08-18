@@ -9,7 +9,7 @@ images:
     name: 'quay.io/ansible/ansible-runner:latest'
 
 dependencies:
-  galaxy: requirements.yml
+  galaxy: requirements-awx.yml
   python: requirements.txt
   system: bindep.txt
 

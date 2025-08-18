@@ -83,8 +83,11 @@
           Kubernetes Cluster Info:
           {{ kubectl_test.stdout }}
 
+  collections:
+    - padminisys.nginx_ingress
+  
   roles:
-    - padminisys.nginx_ingress.nginx
+    - nginx
 
   post_tasks:
     # Verify nginx ingress controller installation using kubectl

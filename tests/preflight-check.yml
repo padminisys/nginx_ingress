@@ -1,0 +1,39 @@
+---
+# Preflight Check Playbook for AWX
+# This playbook ensures the required collection is available before running nginx.yml
+
+- name: Preflight Check - Verify Collection Availability
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Check if padminisys.nginx_ingress collection is available
+      ansible.builtin.command:
+        cmd: ansible-galaxy collection list | grep padminisys.nginx_ingress
+      register: collection_check
+      changed_when: false
+      failed_when: false
+
+    - name: Display collection status
+      ansible.builtin.debug:
+        msg: "Collection padminisys.nginx_ingress is {{ 'available' if collection_check.rc == 0 else 'NOT available' }}"
+
+    - name: Install collection if not available
+      ansible.builtin.command:
+        cmd: ansible-galaxy collection install padminisys.nginx_ingress
+      when: collection_check.rc != 0
+      register: collection_install
+
+    - name: Verify collection installation
+      ansible.builtin.command:
+        cmd: ansible-galaxy collection list | grep padminisys.nginx_ingress
+      register: final_check
+      changed_when: false
+
+    - name: Final collection status
+      ansible.builtin.debug:
+        msg: "Final status: Collection padminisys.nginx_ingress is {{ 'available' if final_check.rc == 0 else 'STILL NOT available' }}"
+
+    - name: Fail if collection is not available
+      ansible.builtin.fail:
+        msg: "Collection padminisys.nginx_ingress is required but not available"
+      when: final_check.rc != 0

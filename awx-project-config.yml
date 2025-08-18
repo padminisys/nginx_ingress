@@ -1,0 +1,42 @@
+---
+# AWX Project Configuration for padminisys.nginx_ingress Collection
+# This file shows how to configure AWX to use your collection
+
+# 1. Project Configuration in AWX:
+#    - Source Control Type: Git
+#    - Source Control URL: <your-repo-url>
+#    - Source Control Branch/Tag/Commit: main (or your preferred branch)
+#    - Source Control Credential: (if private repo)
+#    - Allow Branch Override: false
+#    - Clean: true
+#    - Delete: false
+#    - Update Revision on Launch: true
+
+# 2. Execution Environment:
+#    - Use the execution-environment.yml from this collection
+#    - Or create a custom EE with your collection pre-installed
+
+# 3. Inventory:
+#    - Create inventory with your target hosts
+#    - Ensure connection credentials are configured
+
+# 4. Job Template Configuration:
+#    - Project: Select your project
+#    - Inventory: Select your inventory
+#    - Execution Environment: Select your EE
+#    - Playbook: tests/nginx.yml
+#    - Credentials: Add necessary credentials (Kubernetes, SSH, etc.)
+#    - Variables: Add any required variables
+#    - Survey: Create survey for user inputs if needed
+
+# 5. Collection Installation in AWX:
+#    - Method 1: Use requirements-awx.yml in your project
+#    - Method 2: Pre-install in custom Execution Environment
+#    - Method 3: Use AWX Collection Management (if available)
+
+# 6. Required Variables for nginx.yml:
+#    - nginx_ingress_release:
+#        name: nginx-ingress
+#        namespace: ingress-nginx
+#    - kubernetes_context: your-k8s-context
+#    - Any other variables defined in your role defaults
