@@ -1,6 +1,64 @@
-#SPDX-License-Identifier: MIT-0
+# SPDX-License-Identifier: MIT-0
 ---
-- hosts: localhost
-  remote_user: root
-  roles:
-    - roles/nginx
+- name: Test nginx ingress controller role
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    nginx_ingress:
+      # Use default kubeconfig location for testing
+      kubeconfig_path: ""
+      service:
+        type: "NodePort"
+      helm:
+        wait: true
+        timeout: "10m"
+        force: false
+
+  tasks:
+    - name: Include nginx role
+      ansible.builtin.include_role:
+        name: nginx
+
+    - name: Verify nginx ingress controller deployment
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: "{{ nginx_ingress.release_name }}-controller"
+        namespace: "{{ nginx_ingress.namespace }}"
+        kubeconfig: "{{ kubeconfig_file | default(ansible_env.HOME + '/.kube/config') }}"
+      register: deployment_info
+
+    - name: Assert deployment exists and is ready
+      ansible.builtin.assert:
+        that:
+          - deployment_info.resources | length > 0
+          - deployment_info.resources[0].status.readyReplicas is defined
+          - deployment_info.resources[0].status.readyReplicas > 0
+        fail_msg: "Nginx Ingress Controller deployment is not ready"
+        success_msg: "Nginx Ingress Controller deployment is ready"
+
+    - name: Verify nginx ingress controller service
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Service
+        name: "{{ nginx_ingress.release_name }}-controller"
+        namespace: "{{ nginx_ingress.namespace }}"
+        kubeconfig: "{{ kubeconfig_file | default(ansible_env.HOME + '/.kube/config') }}"
+      register: service_info
+
+    - name: Assert service exists and is NodePort type
+      ansible.builtin.assert:
+        that:
+          - service_info.resources | length > 0
+          - service_info.resources[0].spec.type == "NodePort"
+        fail_msg: "Nginx Ingress Controller service is not configured as NodePort"
+        success_msg: "Nginx Ingress Controller service is correctly configured as NodePort"
+
+    - name: Display test results
+      ansible.builtin.debug:
+        msg: |
+          ✅ All tests passed!
+          - Deployment: {{ deployment_info.resources[0].metadata.name }} ({{ deployment_info.resources[0].status.readyReplicas }} replicas ready)
+          - Service: {{ service_info.resources[0].metadata.name }} ({{ service_info.resources[0].spec.type }})
+          - Namespace: {{ nginx_ingress.namespace }}

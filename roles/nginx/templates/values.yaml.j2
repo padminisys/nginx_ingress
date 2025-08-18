@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: MIT-0
+# Nginx Ingress Controller Values
+# This file configures the nginx ingress controller to run as NodePort service
+
+controller:
+  # Service configuration for NodePort
+  service:
+    type: {{ nginx_ingress.service.type }}
+    {% if nginx_ingress.service.type == "NodePort" %}
+    # NodePort configuration
+    nodePorts:
+      http: 30080
+      https: 30443
+      tcp: {}
+      udp: {}
+    {% endif %}
+
+  # Resource limits and requests
+  resources:
+    limits:
+      cpu: 100m
+      memory: 90Mi
+    requests:
+      cpu: 100m
+      memory: 90Mi
+
+  # Node selector for scheduling
+  nodeSelector:
+    kubernetes.io/os: linux
+
+  # Tolerations for scheduling
+  tolerations: []
+
+  # Affinity rules
+  affinity: {}
+
+  # Replica count
+  replicaCount: 1
+
+  # Image configuration
+  image:
+    registry: registry.k8s.io
+    image: ingress-nginx/controller
+    tag: "v1.8.1"
+    digest: ""
+    pullPolicy: IfNotPresent
+
+  # Admission webhook configuration
+  admissionWebhooks:
+    enabled: true
+    patch:
+      enabled: true
+      image:
+        registry: registry.k8s.io
+        image: ingress-nginx/kube-webhook-certgen
+        tag: v20230407
+        digest: ""
+        pullPolicy: IfNotPresent
+
+# Default backend configuration
+defaultBackend:
+  enabled: false
+
+# RBAC configuration
+rbac:
+  create: true
+
+# Service account configuration
+serviceAccount:
+  create: true
+  name: ""
+  automountServiceAccountToken: true
+
+# Pod security context
+podSecurityContext: {}
+
+# Security context
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+    add:
+    - NET_BIND_SERVICE
+  runAsUser: 101
+  allowPrivilegeEscalation: true

@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: MIT-0
+---
+# Example playbook to install nginx ingress controller
+- name: Install Nginx Ingress Controller
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars: {}
+    # Optional: Override default kubeconfig path
+    # nginx_ingress:
+    #   kubeconfig_path: "/path/to/your/kubeconfig"
+
+    # Optional: Customize service type (default is NodePort)
+    # nginx_ingress:
+    #   service:
+    #     type: "LoadBalancer"
+
+    # Optional: Customize helm settings
+    # nginx_ingress:
+    #   helm:
+    #     wait: true
+    #     timeout: "15m"
+    #     force: false
+
+  roles:
+    - nginx
+
+  post_tasks:
+    - name: Wait for nginx ingress controller to be ready
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: "{{ nginx_ingress.release_name }}-controller"
+        namespace: "{{ nginx_ingress.namespace }}"
+        kubeconfig: "{{ kubeconfig_file | default(ansible_env.HOME + '/.kube/config') }}"
+        wait: true
+        wait_condition:
+          type: Available
+          status: "True"
+        wait_timeout: 300
+      register: deployment_status
+
+    - name: Display deployment status
+      ansible.builtin.debug:
+        msg: "Nginx Ingress Controller deployment is ready with {{ deployment_status.resources[0].status.readyReplicas }} replica(s)"
+      when: deployment_status.resources | length > 0

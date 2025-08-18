@@ -1,8 +1,83 @@
-#SPDX-License-Identifier: MIT-0
+# SPDX-License-Identifier: MIT-0
 ---
 # tasks file for roles/nginx
 
-# roles/hello/tasks/main.yml
-- name: Say hello
+- name: Set kubeconfig path
+  ansible.builtin.set_fact:
+    kubeconfig_file: >-
+      {{
+        nginx_ingress.kubeconfig_path
+        if nginx_ingress.kubeconfig_path != ""
+        else ansible_env.HOME + "/.kube/config"
+      }}
+
+- name: Check if kubeconfig file exists
+  ansible.builtin.stat:
+    path: "{{ kubeconfig_file }}"
+  register: kubeconfig_stat
+
+- name: Fail if kubeconfig file does not exist
+  ansible.builtin.fail:
+    msg: "Kubeconfig file not found at {{ kubeconfig_file }}"
+  when: not kubeconfig_stat.stat.exists
+
+- name: Create temporary directory for values file
+  ansible.builtin.tempfile:
+    state: directory
+    suffix: nginx_ingress
+  register: temp_dir
+
+- name: Generate values.yaml from template
+  ansible.builtin.template:
+    src: "{{ nginx_ingress.values_file }}.j2"
+    dest: "{{ temp_dir.path }}/{{ nginx_ingress.values_file }}"
+    mode: '0644'
+  register: values_file
+
+- name: Install nginx ingress controller using helm
+  kubernetes.core.helm:
+    name: "{{ nginx_ingress.release_name }}"
+    chart_ref: "{{ nginx_ingress.chart_name }}"
+    chart_repo_url: "{{ nginx_ingress.chart_repo }}"
+    release_namespace: "{{ nginx_ingress.namespace }}"
+    create_namespace: "{{ nginx_ingress.create_namespace }}"
+    values_files:
+      - "{{ values_file.dest }}"
+    kubeconfig: "{{ kubeconfig_file }}"
+    wait: "{{ nginx_ingress.helm.wait }}"
+    wait_timeout: "{{ nginx_ingress.helm.timeout }}"
+    force: "{{ nginx_ingress.helm.force }}"
+    state: present
+  register: helm_result
+
+- name: Display helm installation result
   ansible.builtin.debug:
-    msg: "Hello from padminisys.hello! user={{ hello_user | default('world') }}"
+    msg: "Nginx Ingress Controller installed successfully in namespace {{ nginx_ingress.namespace }}"
+  when: helm_result is succeeded
+
+- name: Clean up temporary directory
+  ansible.builtin.file:
+    path: "{{ temp_dir.path }}"
+    state: absent
+  when: temp_dir is defined
+
+- name: Get nginx ingress controller service information
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Service
+    name: "{{ nginx_ingress.release_name }}-controller"
+    namespace: "{{ nginx_ingress.namespace }}"
+    kubeconfig: "{{ kubeconfig_file }}"
+  register: ingress_service
+
+- name: Display service information
+  ansible.builtin.debug:
+    msg: |
+      Nginx Ingress Controller Service Details:
+      - Name: {{ ingress_service.resources[0].metadata.name }}
+      - Type: {{ ingress_service.resources[0].spec.type }}
+      - Ports: {{ ingress_service.resources[0].spec.ports | map(attribute='port') | list }}
+      {% if ingress_service.resources[0].spec.type == 'NodePort' %}
+      - NodePorts: {{ ingress_service.resources[0].spec.ports | selectattr('nodePort', 'defined') | map(attribute='nodePort') | list }}
+      {% endif %}
+  when: ingress_service.resources | length > 0
