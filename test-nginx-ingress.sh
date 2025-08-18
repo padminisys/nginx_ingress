@@ -34,6 +34,28 @@ if [[ ! -f "galaxy.yml" ]]; then
     exit 1
 fi
 
+# Check if virtual environment exists
+if [[ ! -d ".venv" ]]; then
+    print_warning "Virtual environment not found. Setting up development environment first..."
+    if [[ -f "setup-dev-env.sh" ]]; then
+        ./setup-dev-env.sh
+    else
+        print_error "setup-dev-env.sh not found. Please run setup manually."
+        exit 1
+    fi
+fi
+
+# Activate virtual environment
+print_status "Activating virtual environment..."
+source .venv/bin/activate
+
+# Verify Python environment
+print_status "Verifying Python environment..."
+python -c "import kubernetes; print(f'✅ kubernetes library available: {kubernetes.__version__}')" || {
+    print_error "kubernetes library not found. Please run ./setup-dev-env.sh first"
+    exit 1
+}
+
 print_status "Starting nginx ingress collection test workflow..."
 
 # Step 1: Build the collection

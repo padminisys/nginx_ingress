@@ -14,176 +14,101 @@ controller:
     registry: {{ nginx_ingress_values.controller.image.registry }}
     image: {{ nginx_ingress_values.controller.image.image }}
     tag: {{ nginx_ingress_values.controller.image.tag }}
-    {% if nginx_ingress_values.controller.image.digest %}
-    digest: {{ nginx_ingress_values.controller.image.digest }}
-    {% endif %}
     pullPolicy: {{ nginx_ingress_values.controller.image.pullPolicy }}
 
   # Service Configuration
   service:
     enabled: {{ nginx_ingress_values.controller.service.enabled | lower }}
     type: {{ nginx_ingress_values.controller.service.type }}
-    
-    {% if nginx_ingress_values.controller.service.type == "NodePort" %}
+{% if nginx_ingress_values.controller.service.type == "NodePort" %}
     # NodePort Configuration
     nodePorts:
       http: {{ nginx_ingress_values.controller.service.nodePorts.http }}
       https: {{ nginx_ingress_values.controller.service.nodePorts.https }}
-      {% if nginx_ingress_values.controller.service.nodePorts.tcp %}
-      tcp: {{ nginx_ingress_values.controller.service.nodePorts.tcp | to_nice_yaml | indent(8) }}
-      {% else %}
       tcp: {}
-      {% endif %}
-      {% if nginx_ingress_values.controller.service.nodePorts.udp %}
-      udp: {{ nginx_ingress_values.controller.service.nodePorts.udp | to_nice_yaml | indent(8) }}
-      {% else %}
       udp: {}
-      {% endif %}
-    {% endif %}
-    
-    {% if nginx_ingress_values.controller.service.type == "LoadBalancer" %}
-    # LoadBalancer Configuration
-    {% if nginx_ingress_values.controller.service.loadBalancerIP %}
-    loadBalancerIP: {{ nginx_ingress_values.controller.service.loadBalancerIP }}
-    {% endif %}
-    {% if nginx_ingress_values.controller.service.loadBalancerSourceRanges %}
-    loadBalancerSourceRanges:
-    {% for range in nginx_ingress_values.controller.service.loadBalancerSourceRanges %}
-      - {{ range }}
-    {% endfor %}
-    {% endif %}
-    {% endif %}
-    
-    {% if nginx_ingress_values.controller.service.type == "ClusterIP" and nginx_ingress_values.controller.service.clusterIP %}
-    clusterIP: {{ nginx_ingress_values.controller.service.clusterIP }}
-    {% endif %}
-    
-    {% if nginx_ingress_values.controller.service.externalIPs %}
-    externalIPs:
-    {% for ip in nginx_ingress_values.controller.service.externalIPs %}
-      - {{ ip }}
-    {% endfor %}
-    {% endif %}
-    
-    {% if nginx_ingress_values.controller.service.externalTrafficPolicy %}
-    externalTrafficPolicy: {{ nginx_ingress_values.controller.service.externalTrafficPolicy }}
-    {% endif %}
+{% endif %}
 
   # Replica Configuration
   replicaCount: {{ nginx_ingress_values.controller.replicaCount }}
 
   # Resource Configuration
   resources:
-    {% if nginx_ingress_values.controller.resources.limits %}
+{% if nginx_ingress_values.controller.resources.limits %}
     limits:
-      {% if nginx_ingress_values.controller.resources.limits.cpu %}
+{% if nginx_ingress_values.controller.resources.limits.cpu %}
       cpu: {{ nginx_ingress_values.controller.resources.limits.cpu }}
-      {% endif %}
-      {% if nginx_ingress_values.controller.resources.limits.memory %}
+{% endif %}
+{% if nginx_ingress_values.controller.resources.limits.memory %}
       memory: {{ nginx_ingress_values.controller.resources.limits.memory }}
-      {% endif %}
-    {% endif %}
-    {% if nginx_ingress_values.controller.resources.requests %}
+{% endif %}
+{% endif %}
+{% if nginx_ingress_values.controller.resources.requests %}
     requests:
-      {% if nginx_ingress_values.controller.resources.requests.cpu %}
+{% if nginx_ingress_values.controller.resources.requests.cpu %}
       cpu: {{ nginx_ingress_values.controller.resources.requests.cpu }}
-      {% endif %}
-      {% if nginx_ingress_values.controller.resources.requests.memory %}
+{% endif %}
+{% if nginx_ingress_values.controller.resources.requests.memory %}
       memory: {{ nginx_ingress_values.controller.resources.requests.memory }}
-      {% endif %}
-    {% endif %}
+{% endif %}
+{% endif %}
 
   # Node Selection
-  {% if nginx_ingress_values.controller.nodeSelector %}
+{% if nginx_ingress_values.controller.nodeSelector %}
   nodeSelector:
-    {% for key, value in nginx_ingress_values.controller.nodeSelector.items() %}
+{% for key, value in nginx_ingress_values.controller.nodeSelector.items() %}
     {{ key }}: {{ value }}
-    {% endfor %}
-  {% endif %}
+{% endfor %}
+{% endif %}
 
   # Tolerations
-  {% if nginx_ingress_values.controller.tolerations %}
-  tolerations:
-    {{ nginx_ingress_values.controller.tolerations | to_nice_yaml | indent(4) }}
-  {% else %}
   tolerations: []
-  {% endif %}
 
   # Affinity
-  {% if nginx_ingress_values.controller.affinity %}
-  affinity:
-    {{ nginx_ingress_values.controller.affinity | to_nice_yaml | indent(4) }}
-  {% else %}
   affinity: {}
-  {% endif %}
 
   # Pod Security Context
-  {% if nginx_ingress_values.controller.podSecurityContext %}
-  podSecurityContext:
-    {{ nginx_ingress_values.controller.podSecurityContext | to_nice_yaml | indent(4) }}
-  {% else %}
   podSecurityContext: {}
-  {% endif %}
 
   # Security Context
   securityContext:
-    {% if nginx_ingress_values.controller.securityContext.capabilities %}
+{% if nginx_ingress_values.controller.securityContext.capabilities %}
     capabilities:
-      {% if nginx_ingress_values.controller.securityContext.capabilities.drop %}
+{% if nginx_ingress_values.controller.securityContext.capabilities.drop %}
       drop:
-      {% for cap in nginx_ingress_values.controller.securityContext.capabilities.drop %}
+{% for cap in nginx_ingress_values.controller.securityContext.capabilities.drop %}
         - {{ cap }}
-      {% endfor %}
-      {% endif %}
-      {% if nginx_ingress_values.controller.securityContext.capabilities.add %}
+{% endfor %}
+{% endif %}
+{% if nginx_ingress_values.controller.securityContext.capabilities.add %}
       add:
-      {% for cap in nginx_ingress_values.controller.securityContext.capabilities.add %}
+{% for cap in nginx_ingress_values.controller.securityContext.capabilities.add %}
         - {{ cap }}
-      {% endfor %}
-      {% endif %}
-    {% endif %}
-    {% if nginx_ingress_values.controller.securityContext.runAsUser %}
+{% endfor %}
+{% endif %}
+{% endif %}
+{% if nginx_ingress_values.controller.securityContext.runAsUser %}
     runAsUser: {{ nginx_ingress_values.controller.securityContext.runAsUser }}
-    {% endif %}
-    {% if nginx_ingress_values.controller.securityContext.allowPrivilegeEscalation is defined %}
+{% endif %}
+{% if nginx_ingress_values.controller.securityContext.allowPrivilegeEscalation is defined %}
     allowPrivilegeEscalation: {{ nginx_ingress_values.controller.securityContext.allowPrivilegeEscalation | lower }}
-    {% endif %}
+{% endif %}
 
   # Admission Webhooks
   admissionWebhooks:
     enabled: {{ nginx_ingress_values.controller.admissionWebhooks.enabled | lower }}
-    {% if nginx_ingress_values.controller.admissionWebhooks.patch %}
+{% if nginx_ingress_values.controller.admissionWebhooks.patch %}
     patch:
       enabled: {{ nginx_ingress_values.controller.admissionWebhooks.patch.enabled | lower }}
       image:
         registry: {{ nginx_ingress_values.controller.admissionWebhooks.patch.image.registry }}
         image: {{ nginx_ingress_values.controller.admissionWebhooks.patch.image.image }}
         tag: {{ nginx_ingress_values.controller.admissionWebhooks.patch.image.tag }}
-        {% if nginx_ingress_values.controller.admissionWebhooks.patch.image.digest %}
-        digest: {{ nginx_ingress_values.controller.admissionWebhooks.patch.image.digest }}
-        {% endif %}
         pullPolicy: {{ nginx_ingress_values.controller.admissionWebhooks.patch.image.pullPolicy }}
-    {% endif %}
-
-  # Metrics Configuration
-  {% if nginx_ingress_values.controller.metrics %}
-  metrics:
-    enabled: {{ nginx_ingress_values.controller.metrics.enabled | lower }}
-    {% if nginx_ingress_values.controller.metrics.service %}
-    service:
-      type: {{ nginx_ingress_values.controller.metrics.service.type }}
-    {% endif %}
-  {% endif %}
+{% endif %}
 
   # Configuration Options
-  {% if nginx_ingress_values.controller.config %}
-  config:
-    {% for key, value in nginx_ingress_values.controller.config.items() %}
-    {{ key }}: {{ value | to_json }}
-    {% endfor %}
-  {% else %}
   config: {}
-  {% endif %}
 
 # Default Backend Configuration
 defaultBackend:
@@ -196,34 +121,5 @@ rbac:
 # Service Account Configuration
 serviceAccount:
   create: {{ nginx_ingress_values.serviceAccount.create | lower }}
-  {% if nginx_ingress_values.serviceAccount.name %}
-  name: {{ nginx_ingress_values.serviceAccount.name }}
-  {% else %}
   name: ""
-  {% endif %}
   automountServiceAccountToken: {{ nginx_ingress_values.serviceAccount.automountServiceAccountToken | lower }}
-
-# Pod Disruption Budget
-{% if nginx_ingress_values.podDisruptionBudget %}
-podDisruptionBudget:
-  enabled: {{ nginx_ingress_values.podDisruptionBudget.enabled | lower }}
-  {% if nginx_ingress_values.podDisruptionBudget.minAvailable %}
-  minAvailable: {{ nginx_ingress_values.podDisruptionBudget.minAvailable }}
-  {% endif %}
-{% endif %}
-
-# Autoscaling Configuration
-{% if nginx_ingress_values.autoscaling %}
-autoscaling:
-  enabled: {{ nginx_ingress_values.autoscaling.enabled | lower }}
-  {% if nginx_ingress_values.autoscaling.enabled %}
-  minReplicas: {{ nginx_ingress_values.autoscaling.minReplicas }}
-  maxReplicas: {{ nginx_ingress_values.autoscaling.maxReplicas }}
-  {% if nginx_ingress_values.autoscaling.targetCPUUtilizationPercentage %}
-  targetCPUUtilizationPercentage: {{ nginx_ingress_values.autoscaling.targetCPUUtilizationPercentage }}
-  {% endif %}
-  {% if nginx_ingress_values.autoscaling.targetMemoryUtilizationPercentage %}
-  targetMemoryUtilizationPercentage: {{ nginx_ingress_values.autoscaling.targetMemoryUtilizationPercentage }}
-  {% endif %}
-  {% endif %}
-{% endif %}

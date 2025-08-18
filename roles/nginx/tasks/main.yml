@@ -2,6 +2,20 @@
 ---
 # tasks file for roles/nginx
 
+# =============================================================================
+# DEPENDENCY CHECKS AND SETUP
+# =============================================================================
+
+- name: Setup Helm dependency
+  ansible.builtin.include_tasks: helm-setup.yml
+  tags:
+    - helm
+    - dependencies
+
+# =============================================================================
+# KUBECONFIG VALIDATION
+# =============================================================================
+
 - name: Set kubeconfig path
   ansible.builtin.set_fact:
     kubeconfig_file: >-
@@ -20,6 +34,10 @@
   ansible.builtin.fail:
     msg: "Kubeconfig file not found at {{ kubeconfig_file }}"
   when: not kubeconfig_stat.stat.exists
+
+# =============================================================================
+# NGINX INGRESS INSTALLATION
+# =============================================================================
 
 - name: Create temporary directory for values file
   ansible.builtin.tempfile:
@@ -49,6 +67,8 @@
     wait_timeout: "{{ nginx_ingress_helm.timeout }}"
     force: "{{ nginx_ingress_helm.force }}"
     state: present
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
   register: helm_result
 
 - name: Display helm installation result
@@ -67,23 +87,5 @@
     state: absent
   when: temp_dir is defined
 
-- name: Get nginx ingress controller service information
-  kubernetes.core.k8s_info:
-    api_version: v1
-    kind: Service
-    name: "{{ nginx_ingress_release.name }}-controller"
-    namespace: "{{ nginx_ingress_release.namespace }}"
-    kubeconfig: "{{ kubeconfig_file }}"
-  register: ingress_service
-
-- name: Display service information
-  ansible.builtin.debug:
-    msg: |
-      Nginx Ingress Controller Service Details:
-      - Name: {{ ingress_service.resources[0].metadata.name }}
-      - Type: {{ ingress_service.resources[0].spec.type }}
-      - Ports: {{ ingress_service.resources[0].spec.ports | map(attribute='port') | list }}
-      {% if ingress_service.resources[0].spec.type == 'NodePort' %}
-      - NodePorts: {{ ingress_service.resources[0].spec.ports | selectattr('nodePort', 'defined') | map(attribute='nodePort') | list }}
-      {% endif %}
-  when: ingress_service.resources | length > 0
+# Service information will be displayed by the test playbook post_tasks
+# This avoids dependency on kubernetes Python library in the role itself

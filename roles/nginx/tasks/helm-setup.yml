@@ -1,0 +1,84 @@
+# SPDX-License-Identifier: MIT-0
+---
+# Helm setup and validation tasks
+
+- name: Check if Helm is installed
+  ansible.builtin.shell: |
+    export PATH="{{ ansible_env.HOME }}/.local/bin:$PATH"
+    helm version --client
+  register: helm_check
+  failed_when: false
+  changed_when: false
+
+- name: Display Helm status
+  ansible.builtin.debug:
+    msg: |
+      🔍 Helm Installation Check:
+      - Command executed: helm version --client
+      - Return code: {{ helm_check.rc }}
+      - Auto-install enabled: {{ nginx_ingress_helm_install.auto_install }}
+      {% if helm_check.rc == 0 %}
+      - Status: ✅ Helm is already installed
+      - Version: {{ helm_check.stdout }}
+      {% else %}
+      - Status: ❌ Helm not found
+      {% endif %}
+
+- name: Trigger Helm installation if not present
+  ansible.builtin.command:
+    cmd: echo "Helm installation needed"
+  notify: "install helm"
+  changed_when: true
+  when:
+    - helm_check.rc != 0
+    - nginx_ingress_helm_install.auto_install | bool
+
+- name: Display Helm installation notification
+  ansible.builtin.debug:
+    msg: |
+      📦 Helm installation required
+      🔧 Method: {{ nginx_ingress_helm_install.method }}
+      📍 Version: {{ nginx_ingress_helm_install.version }}
+      🎯 Install directory: {{ nginx_ingress_helm_install.install_dir }}
+  when:
+    - helm_check.rc != 0
+    - nginx_ingress_helm_install.auto_install | bool
+
+- name: Fail if Helm not found and auto_install is disabled
+  ansible.builtin.fail:
+    msg: |
+      ❌ Helm is not installed on the target system
+
+      🔧 Resolution Options:
+      1. Enable auto-install by setting: nginx_ingress_helm_install.auto_install: true
+      2. Install Helm manually:
+         curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      3. Use package manager:
+         # RHEL/CentOS: dnf install helm
+         # Ubuntu/Debian: apt install helm
+
+      📋 Current Configuration:
+      - Auto-install: {{ nginx_ingress_helm_install.auto_install }}
+      - Method: {{ nginx_ingress_helm_install.method }}
+      - Version: {{ nginx_ingress_helm_install.version }}
+  when:
+    - helm_check.rc != 0
+    - not nginx_ingress_helm_install.auto_install | bool
+
+- name: Flush handlers to ensure Helm is installed before proceeding
+  ansible.builtin.meta: flush_handlers
+  when: helm_check.rc != 0
+
+- name: Verify Helm is now available (after potential installation)
+  ansible.builtin.shell: |
+    export PATH="{{ ansible_env.HOME }}/.local/bin:$PATH"
+    helm version --client
+  register: helm_verify
+  changed_when: false
+
+- name: Display final Helm status
+  ansible.builtin.debug:
+    msg: |
+      ✅ Helm dependency satisfied
+      📋 Version: {{ helm_verify.stdout }}
+      🚀 Ready to proceed with nginx ingress installation

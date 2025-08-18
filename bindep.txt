@@ -1,0 +1,35 @@
+# System package dependencies for AWX/AAP Execution Environment
+# These packages will be installed in the execution environment container
+
+# Basic utilities
+curl
+wget
+git
+unzip
+
+# Python development headers (for compiling Python packages)
+python3-dev [platform:dpkg]
+python3-devel [platform:rpm]
+
+# SSL/TLS support
+ca-certificates
+openssl
+libssl-dev [platform:dpkg]
+openssl-devel [platform:rpm]
+
+# YAML processing
+libyaml-dev [platform:dpkg]
+libyaml-devel [platform:rpm]
+
+# JSON processing
+libffi-dev [platform:dpkg]
+libffi-devel [platform:rpm]
+
+# Kubernetes client dependencies
+libkrb5-dev [platform:dpkg]
+krb5-devel [platform:rpm]
+
+# Network utilities
+net-tools
+iputils-ping [platform:dpkg]
+iputils [platform:rpm]

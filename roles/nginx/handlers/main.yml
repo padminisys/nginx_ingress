@@ -1,3 +1,40 @@
 # SPDX-License-Identifier: MIT-0
 ---
 # handlers file for roles/nginx
+
+- name: Display Helm installation notification
+  ansible.builtin.debug:
+    msg: |
+      🔧 Helm not found on target system
+      📦 Installing Helm {{ nginx_ingress_helm_install.version }} using {{ nginx_ingress_helm_install.method }} method
+      📍 This is a one-time setup for nginx ingress controller
+  listen: "install helm"
+
+- name: Install Helm using official script
+  ansible.builtin.shell: |
+    export HELM_INSTALL_DIR="{{ ansible_env.HOME }}/.local/bin"
+    mkdir -p "$HELM_INSTALL_DIR"
+    curl -fsSL -o {{ nginx_ingress_helm_install.temp_dir }}/get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+    chmod 700 {{ nginx_ingress_helm_install.temp_dir }}/get_helm.sh
+    {{ nginx_ingress_helm_install.temp_dir }}/get_helm.sh --version {{ nginx_ingress_helm_install.version }} --no-sudo
+    rm -f {{ nginx_ingress_helm_install.temp_dir }}/get_helm.sh
+  args:
+    creates: "{{ ansible_env.HOME }}/.local/bin/helm"
+  when: nginx_ingress_helm_install.method == "script"
+  listen: "install helm"
+
+- name: Verify Helm installation
+  ansible.builtin.command:
+    cmd: helm version --client
+  register: helm_version_check
+  changed_when: false
+  listen: "install helm"
+
+- name: Display Helm installation success
+  ansible.builtin.debug:
+    msg: |
+      ✅ Helm installation completed successfully!
+      📋 Version: {{ helm_version_check.stdout }}
+      📍 Location: {{ nginx_ingress_helm_install.install_dir }}/helm
+      🚀 Ready to proceed with nginx ingress installation
+  listen: "install helm"

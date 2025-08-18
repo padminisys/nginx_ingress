@@ -36,6 +36,19 @@ nginx_ingress_helm:
   timeout: "10m"
   force: false
 
+# Helm Installation Configuration
+nginx_ingress_helm_install:
+  # Whether to automatically install helm if not present
+  auto_install: true
+  # Helm version to install (latest if not specified)
+  version: "v3.13.3"
+  # Installation method: script, package, binary
+  method: "script"
+  # Installation directory (will be set to ~/.local/bin for user install)
+  install_dir: "{{ ansible_env.HOME | default('/home/' + ansible_user_id) }}/.local/bin"
+  # Temporary directory for downloads
+  temp_dir: "/tmp"
+
 # =============================================================================
 # NGINX INGRESS CONTROLLER VALUES
 # =============================================================================

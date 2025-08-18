@@ -1,0 +1,26 @@
+---
+# AWX/AAP Execution Environment Definition
+# This file defines the execution environment for running this collection in AWX/AAP
+
+version: 3
+
+images:
+  base_image:
+    name: 'quay.io/ansible/ansible-runner:latest'
+
+dependencies:
+  galaxy: requirements.yml
+  python: requirements-ee.txt
+  system: bindep.txt
+
+additional_build_steps:
+  prepend_base:
+    - RUN whoami
+    - RUN cat /etc/os-release
+  prepend_galaxy:
+    - COPY _build/requirements.yml /tmp/requirements.yml
+  prepend_final:
+    - RUN ls -la /etc
+
+build_arg_defaults:
+  ANSIBLE_GALAXY_CLI_COLLECTION_OPTS: "--pre"
