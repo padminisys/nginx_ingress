@@ -1,0 +1,125 @@
+# SPDX-License-Identifier: MIT-0
+---
+# Production LoadBalancer Installation Example
+# This example shows how to override default values for a production setup
+
+- name: Install Nginx Ingress Controller - Production LoadBalancer
+  hosts: kubernetes_nodes
+  gather_facts: true
+  vars:
+    # Override default values for production use
+    nginx_ingress_values:
+      controller:
+        # Change service type to LoadBalancer
+        service:
+          type: "LoadBalancer"
+          loadBalancerSourceRanges:
+            - "10.0.0.0/8"
+            - "192.168.0.0/16"
+            - "172.16.0.0/12"
+
+        # Increase replicas for high availability
+        replicaCount: 3
+
+        # Production resource limits
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+
+        # Node selection for dedicated ingress nodes
+        nodeSelector:
+          node-role.kubernetes.io/ingress: "true"
+
+        # Tolerations for dedicated nodes
+        tolerations:
+          - key: "dedicated"
+            operator: "Equal"
+            value: "ingress"
+            effect: "NoSchedule"
+
+        # Anti-affinity for pod distribution
+        affinity:
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                podAffinityTerm:
+                  labelSelector:
+                    matchExpressions:
+                      - key: app.kubernetes.io/name
+                        operator: In
+                        values:
+                          - ingress-nginx
+                  topologyKey: kubernetes.io/hostname
+
+        # Production nginx configuration
+        config:
+          # Security headers
+          server-tokens: "false"
+          ssl-protocols: "TLSv1.2 TLSv1.3"
+          ssl-ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256"
+          ssl-prefer-server-ciphers: "true"
+          hsts: "true"
+          hsts-max-age: "31536000"
+
+          # Performance tuning
+          worker-processes: "auto"
+          worker-connections: "16384"
+          max-worker-open-files: "65536"
+          upstream-keepalive-connections: "320"
+
+          # Logging
+          log-format-json: "true"
+          access-log-path: "/var/log/nginx/access.log"
+          error-log-level: "warn"
+
+        # Enable metrics
+        metrics:
+          enabled: true
+          service:
+            type: "ClusterIP"
+
+      # Enable autoscaling
+      autoscaling:
+        enabled: true
+        minReplicas: 3
+        maxReplicas: 10
+        targetCPUUtilizationPercentage: 70
+        targetMemoryUtilizationPercentage: 80
+
+      # Enable pod disruption budget
+      podDisruptionBudget:
+        enabled: true
+        minAvailable: 2
+
+  roles:
+    - padminisys.nginx_ingress.nginx
+
+  post_tasks:
+    - name: Display production configuration
+      ansible.builtin.debug:
+        msg: |
+          🚀 Production Nginx Ingress Controller deployed!
+
+          📊 Production Configuration:
+          - Chart Version: {{ nginx_ingress_chart.version }}
+          - Service Type: LoadBalancer
+          - Replicas: {{ nginx_ingress_values.controller.replicaCount }}
+          - Autoscaling: {{ nginx_ingress_values.autoscaling.minReplicas }}-{{ nginx_ingress_values.autoscaling.maxReplicas }} replicas
+          - PDB Min Available: {{ nginx_ingress_values.podDisruptionBudget.minAvailable }}
+          - Metrics Enabled: {{ nginx_ingress_values.controller.metrics.enabled }}
+
+          🔒 Security Features:
+          - TLS 1.2/1.3 only
+          - HSTS enabled
+          - Server tokens disabled
+          - Strong cipher suites
+
+          ⚡ Performance Features:
+          - Auto worker processes
+          - 16K worker connections
+          - Upstream keepalive
+          - JSON logging

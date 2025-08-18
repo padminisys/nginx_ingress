@@ -5,16 +5,21 @@
   gather_facts: true
   become: false
   vars:
-    # Nginx ingress configuration
-    nginx_ingress:
+    # Nginx ingress configuration using new structure
+    nginx_ingress_kubeconfig:
       # Use default kubeconfig location on target node
-      kubeconfig_path: ""
-      service:
-        type: "NodePort"
-      helm:
-        wait: true
-        timeout: "15m"
-        force: false
+      path: ""
+    
+    nginx_ingress_helm:
+      wait: true
+      timeout: "15m"
+      force: false
+    
+    # Override service type if needed (default is already NodePort)
+    # nginx_ingress_values:
+    #   controller:
+    #     service:
+    #       type: "LoadBalancer"  # Example override
 
   pre_tasks:
     - name: Display target node information
@@ -86,8 +91,8 @@
       kubernetes.core.k8s_info:
         api_version: apps/v1
         kind: Deployment
-        name: "{{ nginx_ingress.release_name }}-controller"
-        namespace: "{{ nginx_ingress.namespace }}"
+        name: "{{ nginx_ingress_release.name }}-controller"
+        namespace: "{{ nginx_ingress_release.namespace }}"
         kubeconfig: "{{ ansible_env.HOME }}/.kube/config"
         wait: true
         wait_condition:
@@ -100,7 +105,7 @@
       kubernetes.core.k8s_info:
         api_version: v1
         kind: Pod
-        namespace: "{{ nginx_ingress.namespace }}"
+        namespace: "{{ nginx_ingress_release.namespace }}"
         label_selectors:
           - "app.kubernetes.io/name=ingress-nginx"
           - "app.kubernetes.io/component=controller"
@@ -111,8 +116,8 @@
       kubernetes.core.k8s_info:
         api_version: v1
         kind: Service
-        name: "{{ nginx_ingress.release_name }}-controller"
-        namespace: "{{ nginx_ingress.namespace }}"
+        name: "{{ nginx_ingress_release.name }}-controller"
+        namespace: "{{ nginx_ingress_release.namespace }}"
         kubeconfig: "{{ ansible_env.HOME }}/.kube/config"
       register: nginx_service
 
@@ -143,9 +148,16 @@
           {% endfor %}
           {% endif %}
           
-          ✅ Access URLs (NodePort):
+          ✅ Access URLs ({{ nginx_ingress_values.controller.service.type }}):
+          {% if nginx_ingress_values.controller.service.type == 'NodePort' %}
           - HTTP: http://{{ ansible_host }}:{{ nginx_service.resources[0].spec.ports | selectattr('name', 'equalto', 'http') | map(attribute='nodePort') | first }}
           - HTTPS: https://{{ ansible_host }}:{{ nginx_service.resources[0].spec.ports | selectattr('name', 'equalto', 'https') | map(attribute='nodePort') | first }}
+          {% elif nginx_ingress_values.controller.service.type == 'LoadBalancer' %}
+          - HTTP: http://{{ nginx_service.resources[0].status.loadBalancer.ingress[0].ip | default('PENDING') }}
+          - HTTPS: https://{{ nginx_service.resources[0].status.loadBalancer.ingress[0].ip | default('PENDING') }}
+          {% else %}
+          - Cluster IP: {{ nginx_service.resources[0].spec.clusterIP }}
+          {% endif %}
 
     - name: Test nginx ingress controller health
       ansible.builtin.uri:
@@ -154,6 +166,7 @@
         status_code: 200
       register: health_check
       ignore_errors: true
+      when: nginx_ingress_values.controller.service.type == 'NodePort'
 
     - name: Display health check result
       ansible.builtin.debug:

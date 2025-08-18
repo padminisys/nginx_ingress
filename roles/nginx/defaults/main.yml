@@ -2,28 +2,163 @@
 ---
 # defaults file for roles/nginx
 
-# Nginx Ingress Controller Configuration
-nginx_ingress:
-  # Helm chart configuration
-  chart_name: "ingress-nginx"
-  chart_repo: "https://kubernetes.github.io/ingress-nginx"
-  release_name: "ingress-nginx"
+# =============================================================================
+# NGINX INGRESS CONTROLLER CONFIGURATION
+# =============================================================================
+# This role installs nginx-ingress using Helm Chart Version 4.13.1 (App Version 1.13.1)
+# Chart Repository: https://kubernetes.github.io/ingress-nginx
+#
+# Users can override any of these values to customize their installation
+# The structure mirrors the official Helm chart values for easy customization
+# =============================================================================
+
+# Helm Chart Configuration (Fixed for Reproducibility)
+nginx_ingress_chart:
+  name: "ingress-nginx"
+  repo: "https://kubernetes.github.io/ingress-nginx"
+  version: "4.13.1"  # Fixed version for reproducibility
+  app_version: "1.13.1"
+
+# Release Configuration
+nginx_ingress_release:
+  name: "ingress-nginx"
   namespace: "ingress-nginx"
   create_namespace: true
 
-  # Kubeconfig handling
+# Kubeconfig Configuration
+nginx_ingress_kubeconfig:
   # If not specified, will use default location (~/.kube/config)
-  kubeconfig_path: ""
+  path: ""
 
-  # Values file path (relative to role templates directory)
-  values_file: "values.yaml"
+# Helm Operation Configuration
+nginx_ingress_helm:
+  wait: true
+  timeout: "10m"
+  force: false
 
-  # Service configuration
-  service:
-    type: "NodePort"
+# =============================================================================
+# NGINX INGRESS CONTROLLER VALUES
+# =============================================================================
+# This section mirrors the official Helm chart values.yaml structure
+# Users can override any section to customize their deployment
+# Reference: https://github.com/kubernetes/ingress-nginx/blob/main/charts/ingress-nginx/values.yaml
+# =============================================================================
 
-  # Additional helm options
-  helm:
-    wait: true
-    timeout: "10m"
-    force: false
+nginx_ingress_values:
+  # Controller Configuration
+  controller:
+    # Image Configuration
+    image:
+      registry: "registry.k8s.io"
+      image: "ingress-nginx/controller"
+      tag: "v1.13.1"
+      digest: ""
+      pullPolicy: "IfNotPresent"
+
+    # Service Configuration
+    service:
+      enabled: true
+      type: "NodePort"  # Default: NodePort (can be changed to LoadBalancer, ClusterIP)
+      # NodePort specific configuration
+      nodePorts:
+        http: 30080
+        https: 30443
+        tcp: {}
+        udp: {}
+      # LoadBalancer specific configuration (used when type: LoadBalancer)
+      loadBalancerIP: ""
+      loadBalancerSourceRanges: []
+      # ClusterIP specific configuration (used when type: ClusterIP)
+      clusterIP: ""
+      # External IPs
+      externalIPs: []
+      # External Traffic Policy
+      externalTrafficPolicy: ""
+
+    # Replica Configuration
+    replicaCount: 1
+
+    # Resource Configuration
+    resources:
+      limits:
+        cpu: "100m"
+        memory: "90Mi"
+      requests:
+        cpu: "100m"
+        memory: "90Mi"
+
+    # Node Selection
+    nodeSelector:
+      kubernetes.io/os: "linux"
+
+    # Tolerations
+    tolerations: []
+
+    # Affinity
+    affinity: {}
+
+    # Pod Security Context
+    podSecurityContext: {}
+
+    # Security Context
+    securityContext:
+      capabilities:
+        drop:
+          - "ALL"
+        add:
+          - "NET_BIND_SERVICE"
+      runAsUser: 101
+      allowPrivilegeEscalation: true
+
+    # Admission Webhooks
+    admissionWebhooks:
+      enabled: true
+      patch:
+        enabled: true
+        image:
+          registry: "registry.k8s.io"
+          image: "ingress-nginx/kube-webhook-certgen"
+          tag: "v20230407"
+          digest: ""
+          pullPolicy: "IfNotPresent"
+
+    # Metrics Configuration
+    metrics:
+      enabled: false
+      service:
+        type: "ClusterIP"
+
+    # Configuration Options
+    config: {}
+    # Example config overrides:
+    # config:
+    #   use-forwarded-headers: "true"
+    #   compute-full-forwarded-for: "true"
+    #   use-proxy-protocol: "false"
+
+  # Default Backend Configuration
+  defaultBackend:
+    enabled: false
+
+  # RBAC Configuration
+  rbac:
+    create: true
+
+  # Service Account Configuration
+  serviceAccount:
+    create: true
+    name: ""
+    automountServiceAccountToken: true
+
+  # Pod Disruption Budget
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+
+  # Autoscaling Configuration
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 11
+    targetCPUUtilizationPercentage: 50
+    targetMemoryUtilizationPercentage: 50

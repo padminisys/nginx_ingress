@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: MIT-0
+---
+# Basic NodePort Installation Example
+# This is the simplest way to install nginx ingress controller
+# Uses all default values with NodePort service type
+
+- name: Install Nginx Ingress Controller - Basic NodePort
+  hosts: kubernetes_nodes
+  gather_facts: true
+  roles:
+    - padminisys.nginx_ingress.nginx
+
+  post_tasks:
+    - name: Display access information
+      ansible.builtin.debug:
+        msg: |
+          🎉 Nginx Ingress Controller installed successfully!
+
+          📊 Configuration:
+          - Chart Version: {{ nginx_ingress_chart.version }}
+          - Service Type: {{ nginx_ingress_values.controller.service.type }}
+          - HTTP Port: {{ nginx_ingress_values.controller.service.nodePorts.http }}
+          - HTTPS Port: {{ nginx_ingress_values.controller.service.nodePorts.https }}
+
+          🌐 Access URLs:
+          - HTTP: http://YOUR_NODE_IP:{{ nginx_ingress_values.controller.service.nodePorts.http }}
+          - HTTPS: https://YOUR_NODE_IP:{{ nginx_ingress_values.controller.service.nodePorts.https }}
+          - Health: http://YOUR_NODE_IP:{{ nginx_ingress_values.controller.service.nodePorts.http }}/healthz

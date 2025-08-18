@@ -6,8 +6,8 @@
   ansible.builtin.set_fact:
     kubeconfig_file: >-
       {{
-        nginx_ingress.kubeconfig_path
-        if nginx_ingress.kubeconfig_path != ""
+        nginx_ingress_kubeconfig.path
+        if nginx_ingress_kubeconfig.path != ""
         else ansible_env.HOME + "/.kube/config"
       }}
 
@@ -29,30 +29,36 @@
 
 - name: Generate values.yaml from template
   ansible.builtin.template:
-    src: "{{ nginx_ingress.values_file }}.j2"
-    dest: "{{ temp_dir.path }}/{{ nginx_ingress.values_file }}"
+    src: "values.yaml.j2"
+    dest: "{{ temp_dir.path }}/values.yaml"
     mode: '0644'
   register: values_file
 
 - name: Install nginx ingress controller using helm
   kubernetes.core.helm:
-    name: "{{ nginx_ingress.release_name }}"
-    chart_ref: "{{ nginx_ingress.chart_name }}"
-    chart_repo_url: "{{ nginx_ingress.chart_repo }}"
-    release_namespace: "{{ nginx_ingress.namespace }}"
-    create_namespace: "{{ nginx_ingress.create_namespace }}"
+    name: "{{ nginx_ingress_release.name }}"
+    chart_ref: "{{ nginx_ingress_chart.name }}"
+    chart_repo_url: "{{ nginx_ingress_chart.repo }}"
+    chart_version: "{{ nginx_ingress_chart.version }}"
+    release_namespace: "{{ nginx_ingress_release.namespace }}"
+    create_namespace: "{{ nginx_ingress_release.create_namespace }}"
     values_files:
       - "{{ values_file.dest }}"
     kubeconfig: "{{ kubeconfig_file }}"
-    wait: "{{ nginx_ingress.helm.wait }}"
-    wait_timeout: "{{ nginx_ingress.helm.timeout }}"
-    force: "{{ nginx_ingress.helm.force }}"
+    wait: "{{ nginx_ingress_helm.wait }}"
+    wait_timeout: "{{ nginx_ingress_helm.timeout }}"
+    force: "{{ nginx_ingress_helm.force }}"
     state: present
   register: helm_result
 
 - name: Display helm installation result
   ansible.builtin.debug:
-    msg: "Nginx Ingress Controller installed successfully in namespace {{ nginx_ingress.namespace }}"
+    msg: |
+      Nginx Ingress Controller installed successfully!
+      - Chart Version: {{ nginx_ingress_chart.version }}
+      - App Version: {{ nginx_ingress_chart.app_version }}
+      - Release: {{ nginx_ingress_release.name }}
+      - Namespace: {{ nginx_ingress_release.namespace }}
   when: helm_result is succeeded
 
 - name: Clean up temporary directory
@@ -65,8 +71,8 @@
   kubernetes.core.k8s_info:
     api_version: v1
     kind: Service
-    name: "{{ nginx_ingress.release_name }}-controller"
-    namespace: "{{ nginx_ingress.namespace }}"
+    name: "{{ nginx_ingress_release.name }}-controller"
+    namespace: "{{ nginx_ingress_release.namespace }}"
     kubeconfig: "{{ kubeconfig_file }}"
   register: ingress_service
 

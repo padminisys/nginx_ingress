@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: MIT-0
+---
+# ClusterIP Internal Installation Example
+# This example shows how to install nginx ingress for internal cluster use only
+
+- name: Install Nginx Ingress Controller - Internal ClusterIP
+  hosts: kubernetes_nodes
+  gather_facts: true
+  vars:
+    # Override for internal-only deployment
+    nginx_ingress_values:
+      controller:
+        # ClusterIP for internal access only
+        service:
+          type: "ClusterIP"
+
+        # Single replica for development/internal use
+        replicaCount: 1
+
+        # Reduced resources for internal use
+        resources:
+          limits:
+            cpu: "200m"
+            memory: "128Mi"
+          requests:
+            cpu: "100m"
+            memory: "64Mi"
+
+        # Internal configuration
+        config:
+          # Allow internal traffic only
+          whitelist-source-range: "10.0.0.0/8,192.168.0.0/16,172.16.0.0/12"
+          # Disable external access logs for internal use
+          access-log-path: "/dev/stdout"
+          error-log-level: "info"
+          # Internal optimizations
+          worker-processes: "1"
+          worker-connections: "1024"
+
+  roles:
+    - padminisys.nginx_ingress.nginx
+
+  post_tasks:
+    - name: Display internal configuration
+      ansible.builtin.debug:
+        msg: |
+          🔒 Internal Nginx Ingress Controller deployed!
+
+          📊 Internal Configuration:
+          - Chart Version: {{ nginx_ingress_chart.version }}
+          - Service Type: ClusterIP (internal only)
+          - Replicas: {{ nginx_ingress_values.controller.replicaCount }}
+          - Resource Profile: Minimal
+
+          🌐 Access:
+          - Only accessible from within the cluster
+          - Use kubectl port-forward for external access:
+            kubectl port-forward -n ingress-nginx service/ingress-nginx-controller 8080:80
+
+          🔧 Development Commands:
+          - Test from within cluster: curl http://ingress-nginx-controller.ingress-nginx.svc.cluster.local
+          - Port forward: kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8080:80
