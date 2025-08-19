@@ -9,7 +9,7 @@ images:
     name: 'quay.io/ansible/awx-ee:24.6.1'
 
 dependencies:
-  galaxy: requirements-build.yml
+  galaxy: requirements.yml
   python: requirements.txt
   system: bindep.txt
 
