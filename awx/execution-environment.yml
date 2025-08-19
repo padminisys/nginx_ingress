@@ -12,7 +12,7 @@ build_arg_defaults:
   ANSIBLE_GALAXY_CLI_COLLECTION_OPTS: "--timeout=60 --retries=3"
 
 dependencies:
-  galaxy: requirements-awx.yml
+  galaxy: requirements-build.yml
   python: requirements.txt
   system: bindep.txt
 

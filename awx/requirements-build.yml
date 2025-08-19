@@ -1,0 +1,13 @@
+---
+# Ansible Collection Requirements for EE Build
+# This file is used during the execution environment build process
+# It excludes the self-referencing collection to avoid circular dependencies
+
+collections:
+  # Core dependencies only - no self-reference during build
+  - name: kubernetes.core
+    version: ">=2.4.0"
+  - name: ansible.posix
+    version: ">=1.5.0"
+  - name: community.general
+    version: ">=7.0.0"
