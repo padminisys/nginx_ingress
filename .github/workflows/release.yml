@@ -87,6 +87,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install ansible-builder
 
+      - name: Wait for collection to be available
+        run: |
+          echo "Waiting 30 seconds for collection to be available on Galaxy..."
+          sleep 30
+
       - name: Log in to Container Registry
         uses: docker/login-action@v3
         with:
@@ -108,12 +113,26 @@ jobs:
         run: |
           cd awx
           echo "Building execution environment..."
-          ansible-builder build \
-            --file execution-environment.yml \
+          echo "Using base image: quay.io/ansible/awx-ee:24.6.1"
+          
+          # Try with the simplified configuration first
+          echo "Attempting build with simplified configuration..."
+          if ansible-builder build \
+            --file execution-environment-simple.yml \
             --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish-collection.outputs.collection-version }} \
             --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
             --container-runtime docker \
-            --verbosity 2
+            --verbosity 2; then
+            echo "✅ Build successful with simplified configuration"
+          else
+            echo "❌ Simplified build failed, trying with full configuration..."
+            ansible-builder build \
+              --file execution-environment.yml \
+              --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish-collection.outputs.collection-version }} \
+              --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+              --container-runtime docker \
+              --verbosity 2
+          fi
 
       - name: Push execution environment to registry
         run: |

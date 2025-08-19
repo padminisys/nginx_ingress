@@ -8,6 +8,9 @@ images:
   base_image:
     name: 'quay.io/ansible/awx-ee:24.6.1'
 
+build_arg_defaults:
+  ANSIBLE_GALAXY_CLI_COLLECTION_OPTS: "--timeout=60 --retries=3"
+
 dependencies:
   galaxy: requirements-awx.yml
   python: requirements.txt
@@ -17,17 +20,17 @@ additional_build_steps:
   prepend_base:
     - RUN whoami
     - RUN cat /etc/os-release
+    - RUN python3 -m pip install --upgrade pip
   prepend_galaxy:
     - RUN echo "Setting up Galaxy configuration for better reliability"
     - RUN mkdir -p ~/.ansible
     - RUN echo "[defaults]" > ~/.ansible/ansible.cfg
     - RUN echo "host_key_checking = False" >> ~/.ansible/ansible.cfg
+    - RUN echo "timeout = 60" >> ~/.ansible/ansible.cfg
     - RUN echo "[galaxy]" >> ~/.ansible/ansible.cfg
     - RUN echo "server_list = release_galaxy" >> ~/.ansible/ansible.cfg
     - RUN echo "[galaxy_server.release_galaxy]" >> ~/.ansible/ansible.cfg
     - RUN echo "url = https://galaxy.ansible.com/" >> ~/.ansible/ansible.cfg
   prepend_final:
     - RUN ansible-galaxy collection list || echo "No collections installed yet"
-
-build_arg_defaults:
-  ANSIBLE_GALAXY_CLI_COLLECTION_OPTS: "--timeout=60 --retries=3"
+    - RUN ansible --version || echo "Ansible version check"
