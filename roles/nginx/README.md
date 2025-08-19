@@ -1,5 +1,7 @@
 # Nginx Ingress Controller Role
 
+[![Ansible Role](https://img.shields.io/badge/role-nginx-blue.svg)](https://galaxy.ansible.com/padminisys/nginx_ingress)
+
 This Ansible role installs and configures the Nginx Ingress Controller on a Kubernetes cluster using Helm Chart **Version 4.13.1** (App Version 1.13.1).
 
 ## 🎯 Key Features
@@ -337,6 +339,11 @@ MIT-0
 
 ## 👥 Author Information
 
-This role was created as part of the padminisys ansible collection for Kubernetes infrastructure management.
+This role was created as part of the [padminisys.nginx_ingress](https://galaxy.ansible.com/padminisys/nginx_ingress) ansible collection for Kubernetes infrastructure management.
 
-For more examples and advanced configurations, see the [examples](../../examples/) directory.
+## 🔗 Related Resources
+
+- [Collection Documentation](../../README.md)
+- [Example Playbooks](../../examples/)
+- [Official Nginx Ingress Documentation](https://kubernetes.github.io/ingress-nginx/)
+- [Helm Chart Repository](https://github.com/kubernetes/ingress-nginx/tree/main/charts/ingress-nginx)

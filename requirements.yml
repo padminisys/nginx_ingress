@@ -14,5 +14,5 @@ collections:
   # Note: The padminisys.nginx_ingress collection will be available
   # after the EE is built and the collection is published
   - name: padminisys.nginx_ingress
-    version: ">=1.0.5"
+    version: ">=1.0.6"
     source: https://galaxy.ansible.com/
