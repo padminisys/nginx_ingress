@@ -1,0 +1,179 @@
+name: Release Collection and Execution Environment
+
+on:
+  push:
+    branches:
+      - 'release/*'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/awx-ee
+
+jobs:
+  publish-collection:
+    name: Build and Publish Collection to Galaxy
+    runs-on: ubuntu-latest
+    outputs:
+      collection-version: ${{ steps.get-version.outputs.version }}
+      collection-name: ${{ steps.get-version.outputs.name }}
+      collection-namespace: ${{ steps.get-version.outputs.namespace }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Ansible and dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-core>=2.16
+          pip install ansible-dev-tools
+
+      - name: Get collection metadata
+        id: get-version
+        run: |
+          VERSION=$(grep '^version:' galaxy.yml | awk '{print $2}')
+          NAME=$(grep '^name:' galaxy.yml | awk '{print $2}')
+          NAMESPACE=$(grep '^namespace:' galaxy.yml | awk '{print $2}')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+          echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT
+          echo "Collection: $NAMESPACE.$NAME version $VERSION"
+
+      - name: Build collection
+        run: |
+          ansible-galaxy collection build --force
+          ls -la *.tar.gz
+
+      - name: Publish collection to Galaxy
+        env:
+          ANSIBLE_GALAXY_API_KEY: ${{ secrets.ANSIBLE_GALAXY_API_KEY }}
+        run: |
+          COLLECTION_FILE=$(ls *.tar.gz | head -1)
+          echo "Publishing $COLLECTION_FILE to Ansible Galaxy..."
+          ansible-galaxy collection publish "$COLLECTION_FILE" --api-key="$ANSIBLE_GALAXY_API_KEY"
+
+      - name: Upload collection artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: collection-artifact
+          path: "*.tar.gz"
+          retention-days: 30
+
+  build-execution-environment:
+    name: Build and Push Execution Environment
+    runs-on: ubuntu-latest
+    needs: publish-collection
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install ansible-builder
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-builder
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=raw,value=${{ needs.publish-collection.outputs.collection-version }}
+            type=raw,value=latest
+
+      - name: Build execution environment
+        run: |
+          cd awx
+          echo "Building execution environment..."
+          ansible-builder build \
+            --file execution-environment.yml \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish-collection.outputs.collection-version }} \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            --container-runtime docker \
+            --verbosity 2
+
+      - name: Push execution environment to registry
+        run: |
+          echo "Pushing execution environment images..."
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish-collection.outputs.collection-version }}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Generate build summary
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Collection**: ${{ needs.publish-collection.outputs.collection-namespace }}.${{ needs.publish-collection.outputs.collection-name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ needs.publish-collection.outputs.collection-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Execution Environment**: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish-collection.outputs.collection-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+  verify-deployment:
+    name: Verify Published Artifacts
+    runs-on: ubuntu-latest
+    needs: [publish-collection, build-execution-environment]
+    if: always() && needs.publish-collection.result == 'success' && needs.build-execution-environment.result == 'success'
+
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Ansible
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-core
+
+      - name: Verify collection on Galaxy
+        run: |
+          echo "Waiting for collection to be available on Galaxy..."
+          sleep 30
+          ansible-galaxy collection install ${{ needs.publish-collection.outputs.collection-namespace }}.${{ needs.publish-collection.outputs.collection-name }}:${{ needs.publish-collection.outputs.collection-version }} --force
+          ansible-galaxy collection list | grep ${{ needs.publish-collection.outputs.collection-namespace }}
+
+      - name: Verify execution environment image
+        run: |
+          echo "Verifying execution environment image..."
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish-collection.outputs.collection-version }}
+          docker inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish-collection.outputs.collection-version }}
+
+      - name: Create release summary
+        run: |
+          echo "## 🚀 Release Completed Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Published Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- **Ansible Collection**: [${{ needs.publish-collection.outputs.collection-namespace }}.${{ needs.publish-collection.outputs.collection-name }}](https://galaxy.ansible.com/${{ needs.publish-collection.outputs.collection-namespace }}/${{ needs.publish-collection.outputs.collection-name }})" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: \`${{ needs.publish-collection.outputs.collection-version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Execution Environment**: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish-collection.outputs.collection-version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Installation Commands" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "# Install collection" >> $GITHUB_STEP_SUMMARY
+          echo "ansible-galaxy collection install ${{ needs.publish-collection.outputs.collection-namespace }}.${{ needs.publish-collection.outputs.collection-name }}:${{ needs.publish-collection.outputs.collection-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Pull execution environment" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish-collection.outputs.collection-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
